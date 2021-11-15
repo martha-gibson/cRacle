@@ -1,0 +1,61 @@
+### CRACLE sample code ###
+# Example of cRacle using palynoflora data from sample KM-1 of the Brassington Formation (Serravallian; Middle Miocene), Derbyshire, United Kingdom 
+
+### Please find full code deatils in original repository
+# https://github.com/rsh249/cRacle
+
+### install packages
+devtools::install_github('rsh249/cRacle') # code to install cRacle, or download from https://github.com/rsh249/cRacle
+library(cRacle)
+install.packages('raster')
+library(raster)
+library(dplyr)
+install.packages("wesanderson")
+library(wesanderson)
+install.packages("ggplot2")
+library(ggplot2)
+
+### connect to WorldClim and load climate data
+clim = getData('worldclim', var = 'bio', res = 10, path = tempdir())
+
+### Get occurrence data for a list of modern taxa
+reconstr <- getextr(c('Abies',
+                      'Alnus', 
+                      'Amaranthaceae',
+                      'Betula', 
+                      'Caryophyllaceae'), # etc..... insert full NLR list
+                      clim = clim, 
+                      repo = c('gbif'),   # GBIF (Global Biodiversity Information Facility) https://www.gbif.org/
+                      maxrec=9000,        # maxrec set to 9000
+                      schema= 'flat', 
+                      rm.outlier = TRUE, 
+                      alpha=0.01, 
+                      factor = 4,
+                      nmin = 5, 
+                      parallel= TRUE,     # parallel processing 
+                      nclus = 4) 
+
+### Build probability distributions fo each taxon
+dens.list<-dens_obj(reconstr, clim = clim, manip = 'reg', kern = 'optcosine')
+
+### Calculate the interset of all taxa for each variable
+and <- and_fun(dens.list) 
+# this is the Coexistence Likelihood Estimation
+
+### Find the optima for these joint likelihood functions
+optim.and <- get_optim(and) 
+
+### Visualisations
+# names(clim[[n]]) where n = climate varaible (1-19)
+1# this example is for Mean Annual Temperature (bio1)
+multiplot(dens.list,
+          names(clim[[1]]), 
+          col = wes_palette('Chevalier1', 100, type = 'continuous'), 
+          type = ".kde", 
+          l.pos = "topright",
+          l.cex = 0.45,
+          w = TRUE)  
+
+### export reconstruction
+write.csv(optim.and, "Brassington KM-1.csv")
+write.csv(dens.list, "Brassington KM-1.csv")
